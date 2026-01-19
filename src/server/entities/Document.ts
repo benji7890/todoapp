@@ -1,5 +1,5 @@
 import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
-import { DOCUMENT_STATUS, DocumentStatus } from '../../shared/documents';
+import { DOCUMENT_STATUS, DocumentStatus, AllowedMimeType } from '../../shared/documents';
 
 @Entity()
 export class Document {
@@ -13,15 +13,15 @@ export class Document {
   fileSize: number;
 
   @Property()
-  mimeType: string;
+  mimeType: AllowedMimeType;
 
   @Property()
   uploadedAt: Date;
 
   @Property()
-  status: string;
+  status: DocumentStatus;
 
-  constructor(params: { filename: string; fileSize: number; mimeType: string; status?: DocumentStatus }) {
+  constructor(params: { filename: string; fileSize: number; mimeType: AllowedMimeType; status?: DocumentStatus }) {
     this.filename = params.filename;
     this.fileSize = params.fileSize;
     this.mimeType = params.mimeType;

@@ -1,11 +1,6 @@
 import { z } from 'zod';
-import { initTRPC } from '@trpc/server';
 import { Todo } from '../entities/Todo';
-import type { Context } from '../trpc';
-
-const t = initTRPC.context<Context>().create();
-const router = t.router;
-const publicProcedure = t.procedure;
+import { router, publicProcedure } from '../trpc-base';
 
 export const todosRouter = router({
   list: publicProcedure.query(async ({ ctx }) => {

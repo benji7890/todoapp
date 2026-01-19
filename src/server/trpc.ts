@@ -1,16 +1,8 @@
-import { initTRPC } from '@trpc/server';
-import { MikroORM } from '@mikro-orm/core';
 import { documentsRouter } from './routes/documents';
 import { todosRouter } from './routes/todos';
+import { router, publicProcedure } from './trpc-base';
 
-export interface Context {
-  orm: MikroORM;
-}
-
-const t = initTRPC.context<Context>().create();
-
-export const router = t.router;
-export const publicProcedure = t.procedure;
+export { router, publicProcedure, type Context } from './trpc-base';
 
 export function createAppRouter() {
   return router({

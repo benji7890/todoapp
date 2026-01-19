@@ -24,7 +24,7 @@ export interface Document {
   id: number;
   filename: string;
   fileSize: number;
-  mimeType: string;
+  mimeType: AllowedMimeType;
   uploadedAt: Date;
-  status: string;
+  status: DocumentStatus;
 }
