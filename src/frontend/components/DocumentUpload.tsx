@@ -3,7 +3,6 @@ import { trpc } from '../utils/trpc';
 import {
   MAX_FILE_SIZE,
   ALLOWED_MIME_TYPES,
-  AllowedMimeType,
   DOCUMENT_STATUS,
   DocumentStatus,
   Document,
@@ -86,22 +85,13 @@ const statusMessages: Record<DocumentStatus, string> = {
 // Helper Functions
 // =============================================================================
 
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function isAllowedMimeType(type: string): type is AllowedMimeType {
+function isAllowedMimeType(type: string): boolean {
   return (ALLOWED_MIME_TYPES as readonly string[]).includes(type);
 }
 
@@ -188,7 +178,7 @@ function DocumentUpload() {
   const uploadMutation = trpc.documents.upload.useMutation();
   const utils = trpc.useUtils();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const validateAndSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = e.target.files?.[0];
 
@@ -221,14 +211,10 @@ function DocumentUpload() {
     setUploadStatus(DOCUMENT_STATUS.UPLOADING);
 
     try {
-      const base64Data = await readFileAsBase64(selectedFile);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
 
-      await uploadMutation.mutateAsync({
-        filename: selectedFile.name,
-        mimeType: selectedFile.type as AllowedMimeType,
-        fileSize: selectedFile.size,
-        data: base64Data,
-      });
+      await uploadMutation.mutateAsync(formData);
 
       setUploadStatus(DOCUMENT_STATUS.UPLOADED);
       setSelectedFile(null);
@@ -253,7 +239,7 @@ function DocumentUpload() {
           <input
             ref={fileInputRef}
             type="file"
-            onChange={handleFileChange}
+            onChange={validateAndSelectFile}
             accept={ALLOWED_MIME_TYPES.join(',')}
             style={styles.fileInput}
           />

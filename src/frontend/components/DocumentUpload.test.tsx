@@ -182,7 +182,7 @@ describe('DocumentUpload', () => {
     });
   });
 
-  it('calls upload mutation when upload button is clicked', async () => {
+  it('calls upload mutation with FormData when upload button is clicked', async () => {
     const user = userEvent.setup();
     mockUploadMutationObj.mutateAsync.mockResolvedValue({ id: 1 });
 
@@ -197,13 +197,11 @@ describe('DocumentUpload', () => {
     await user.click(uploadButton);
 
     await waitFor(() => {
-      expect(mockUploadMutationObj.mutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          filename: 'test-file.pdf',
-          mimeType: 'application/pdf',
-          fileSize: 12, // 'test content'.length
-        })
-      );
+      expect(mockUploadMutationObj.mutateAsync).toHaveBeenCalled();
+      const calledArg = mockUploadMutationObj.mutateAsync.mock.calls[0][0];
+      expect(calledArg).toBeInstanceOf(FormData);
+      expect(calledArg.get('file')).toBeInstanceOf(File);
+      expect((calledArg.get('file') as File).name).toBe('test-file.pdf');
     });
   });
 

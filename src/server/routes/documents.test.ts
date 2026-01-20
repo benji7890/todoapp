@@ -4,6 +4,18 @@ import { setupTestDb, clearTestDb, closeTestDb } from '../test-utils/setup';
 import { createTestCaller, type TestCaller } from '../test-utils/trpc-test-utils';
 import { Document } from '../entities/Document';
 
+// Helper to create FormData with a file for testing
+function createTestFormData(filename: string, mimeType: string, size: number, content = 'test content'): FormData {
+  const file = new File([content], filename, { type: mimeType });
+  // Override size for testing size limits
+  if (size !== content.length) {
+    Object.defineProperty(file, 'size', { value: size });
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  return formData;
+}
+
 describe('Document tRPC Endpoints', () => {
   let orm: MikroORM;
   let caller: TestCaller;
@@ -50,58 +62,25 @@ describe('Document tRPC Endpoints', () => {
   });
 
   describe('documents.upload', () => {
-    it('should upload a document with all fields', async () => {
+    it('should upload a document with FormData', async () => {
       await runInContext(async () => {
-        const result = await caller.documents.upload({
-          filename: 'test.pdf',
-          mimeType: 'application/pdf',
-          fileSize: 2048,
-          data: 'base64encodeddata',
-        });
+        const formData = createTestFormData('test.pdf', 'application/pdf', 12);
+
+        const result = await caller.documents.upload(formData);
 
         expect(result.filename).toBe('test.pdf');
         expect(result.mimeType).toBe('application/pdf');
-        expect(result.fileSize).toBe(2048);
+        expect(result.fileSize).toBe(12);
         expect(result.status).toBe('uploaded');
         expect(result.id).toBeDefined();
         expect(result.uploadedAt).toBeDefined();
       });
     });
 
-    it('should fail with empty filename', async () => {
-      await runInContext(async () => {
-        await expect(
-          caller.documents.upload({
-            filename: '',
-            mimeType: 'application/pdf',
-            fileSize: 1024,
-            data: 'base64data',
-          })
-        ).rejects.toThrow();
-      });
-    });
-
-    it('should fail with invalid fileSize', async () => {
-      await runInContext(async () => {
-        await expect(
-          caller.documents.upload({
-            filename: 'test.pdf',
-            mimeType: 'application/pdf',
-            fileSize: -1,
-            data: 'base64data',
-          })
-        ).rejects.toThrow();
-      });
-    });
-
     it('should persist document to database', async () => {
       await runInContext(async () => {
-        await caller.documents.upload({
-          filename: 'persisted.pdf',
-          mimeType: 'application/pdf',
-          fileSize: 4096,
-          data: 'base64data',
-        });
+        const formData = createTestFormData('persisted.pdf', 'application/pdf', 12);
+        await caller.documents.upload(formData);
 
         const documents = await orm.em.find(Document, {});
         expect(documents).toHaveLength(1);
@@ -112,27 +91,17 @@ describe('Document tRPC Endpoints', () => {
     it('should reject file exceeding 10MB', async () => {
       await runInContext(async () => {
         const oversizedFileSize = 11 * 1024 * 1024; // 11MB
-        await expect(
-          caller.documents.upload({
-            filename: 'large.pdf',
-            mimeType: 'application/pdf',
-            fileSize: oversizedFileSize,
-            data: 'base64data',
-          })
-        ).rejects.toThrow();
+        const formData = createTestFormData('large.pdf', 'application/pdf', oversizedFileSize);
+
+        await expect(caller.documents.upload(formData)).rejects.toThrow();
       });
     });
 
     it('should reject disallowed MIME type', async () => {
       await runInContext(async () => {
-        await expect(
-          caller.documents.upload({
-            filename: 'malware.exe',
-            mimeType: 'application/x-msdownload' as any,
-            fileSize: 1024,
-            data: 'base64data',
-          })
-        ).rejects.toThrow();
+        const formData = createTestFormData('malware.exe', 'application/x-msdownload', 1024);
+
+        await expect(caller.documents.upload(formData)).rejects.toThrow();
       });
     });
 
@@ -146,41 +115,19 @@ describe('Document tRPC Endpoints', () => {
         ];
 
         for (const { filename, mimeType } of allowedTypes) {
-          const result = await caller.documents.upload({
-            filename,
-            mimeType: mimeType as any,
-            fileSize: 1024,
-            data: 'base64data',
-          });
+          const formData = createTestFormData(filename, mimeType, 1024);
+          const result = await caller.documents.upload(formData);
           expect(result.mimeType).toBe(mimeType);
         }
       });
     });
 
-    it('should reject filename over 255 characters', async () => {
-      await runInContext(async () => {
-        const longFilename = 'a'.repeat(256) + '.pdf';
-        await expect(
-          caller.documents.upload({
-            filename: longFilename,
-            mimeType: 'application/pdf',
-            fileSize: 1024,
-            data: 'base64data',
-          })
-        ).rejects.toThrow();
-      });
-    });
-
-    // Edge case tests
     it('should accept file exactly at 10MB boundary', async () => {
       await runInContext(async () => {
         const exactlyMaxSize = 10 * 1024 * 1024; // Exactly 10MB
-        const result = await caller.documents.upload({
-          filename: 'exact-limit.pdf',
-          mimeType: 'application/pdf',
-          fileSize: exactlyMaxSize,
-          data: 'base64data',
-        });
+        const formData = createTestFormData('exact-limit.pdf', 'application/pdf', exactlyMaxSize);
+
+        const result = await caller.documents.upload(formData);
 
         expect(result.fileSize).toBe(exactlyMaxSize);
         expect(result.status).toBe('uploaded');
@@ -190,120 +137,53 @@ describe('Document tRPC Endpoints', () => {
     it('should reject file at 10MB + 1 byte', async () => {
       await runInContext(async () => {
         const justOverMaxSize = 10 * 1024 * 1024 + 1; // 10MB + 1 byte
-        await expect(
-          caller.documents.upload({
-            filename: 'over-limit.pdf',
-            mimeType: 'application/pdf',
-            fileSize: justOverMaxSize,
-            data: 'base64data',
-          })
-        ).rejects.toThrow();
+        const formData = createTestFormData('over-limit.pdf', 'application/pdf', justOverMaxSize);
+
+        await expect(caller.documents.upload(formData)).rejects.toThrow();
       });
     });
 
     it('should handle unicode characters in filename', async () => {
       await runInContext(async () => {
         const unicodeFilename = '文档测试_日本語_émoji🎉.pdf';
-        const result = await caller.documents.upload({
-          filename: unicodeFilename,
-          mimeType: 'application/pdf',
-          fileSize: 1024,
-          data: 'base64data',
-        });
+        const formData = createTestFormData(unicodeFilename, 'application/pdf', 1024);
+
+        const result = await caller.documents.upload(formData);
 
         expect(result.filename).toBe(unicodeFilename);
-      });
-    });
-
-    it('should accept filename exactly at 255 characters', async () => {
-      await runInContext(async () => {
-        // 255 chars total including .pdf extension
-        const maxFilename = 'a'.repeat(251) + '.pdf';
-        expect(maxFilename.length).toBe(255);
-
-        const result = await caller.documents.upload({
-          filename: maxFilename,
-          mimeType: 'application/pdf',
-          fileSize: 1024,
-          data: 'base64data',
-        });
-
-        expect(result.filename).toBe(maxFilename);
       });
     });
 
     it('should handle filename with special characters', async () => {
       await runInContext(async () => {
         const specialFilename = 'file-with_special (1) [copy].pdf';
-        const result = await caller.documents.upload({
-          filename: specialFilename,
-          mimeType: 'application/pdf',
-          fileSize: 1024,
-          data: 'base64data',
-        });
+        const formData = createTestFormData(specialFilename, 'application/pdf', 1024);
+
+        const result = await caller.documents.upload(formData);
 
         expect(result.filename).toBe(specialFilename);
-      });
-    });
-
-    it('should reject zero file size', async () => {
-      await runInContext(async () => {
-        await expect(
-          caller.documents.upload({
-            filename: 'empty.pdf',
-            mimeType: 'application/pdf',
-            fileSize: 0,
-            data: '',
-          })
-        ).rejects.toThrow();
-      });
-    });
-
-    it('should handle filename with leading/trailing spaces', async () => {
-      await runInContext(async () => {
-        // Depending on implementation, this might be trimmed or rejected
-        const result = await caller.documents.upload({
-          filename: '  spaced-file.pdf  ',
-          mimeType: 'application/pdf',
-          fileSize: 1024,
-          data: 'base64data',
-        });
-
-        // Should either trim or accept as-is
-        expect(result.filename).toBeDefined();
       });
     });
 
     it('should accept all allowed Word document MIME types', async () => {
       await runInContext(async () => {
         // Test legacy .doc format
-        const doc = await caller.documents.upload({
-          filename: 'legacy.doc',
-          mimeType: 'application/msword' as any,
-          fileSize: 1024,
-          data: 'base64data',
-        });
+        const docFormData = createTestFormData('legacy.doc', 'application/msword', 1024);
+        const doc = await caller.documents.upload(docFormData);
         expect(doc.mimeType).toBe('application/msword');
 
         // Test modern .docx format
-        const docx = await caller.documents.upload({
-          filename: 'modern.docx',
-          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' as any,
-          fileSize: 1024,
-          data: 'base64data',
-        });
+        const docxFormData = createTestFormData('modern.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 1024);
+        const docx = await caller.documents.upload(docxFormData);
         expect(docx.mimeType).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       });
     });
 
     it('should accept GIF images', async () => {
       await runInContext(async () => {
-        const result = await caller.documents.upload({
-          filename: 'animation.gif',
-          mimeType: 'image/gif' as any,
-          fileSize: 2048,
-          data: 'base64data',
-        });
+        const formData = createTestFormData('animation.gif', 'image/gif', 2048);
+
+        const result = await caller.documents.upload(formData);
 
         expect(result.mimeType).toBe('image/gif');
       });

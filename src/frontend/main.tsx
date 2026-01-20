@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { httpBatchLink } from '@trpc/client';
+import { httpBatchLink, httpLink, splitLink, isNonJsonSerializable } from '@trpc/client';
 import { trpc } from './utils/trpc';
 import App from './App';
 
@@ -9,8 +9,10 @@ const queryClient = new QueryClient();
 
 const trpcClient = trpc.createClient({
   links: [
-    httpBatchLink({
-      url: '/api/trpc',
+    splitLink({
+      condition: (op) => isNonJsonSerializable(op.input),
+      true: httpLink({ url: '/api/trpc' }),
+      false: httpBatchLink({ url: '/api/trpc' }),
     }),
   ],
 });

@@ -116,7 +116,7 @@ This is a full-stack TypeScript application with tRPC, MikroORM, and React:
 
 ## Development Patterns
 
-- **Entity Creation**: Use constructor with object params: `new Todo({ title, description })` or `new Document({ filename, mimeType, fileSize, status })`
+- **Entity Creation**: Use constructor with object params: `new Todo({ title, description })` or `new Document({ filename, fileSize, mimeType, status? })`
 - **Database Operations**: Use `ctx.orm.em` directly (no manual forking needed)
 - **API Design**: tRPC procedures with Zod input validation
 - **State Management**: React Query with tRPC for automatic caching and invalidation
@@ -124,4 +124,4 @@ This is a full-stack TypeScript application with tRPC, MikroORM, and React:
 - **Testing**: Tests co-located with code, Sinon-based mocking for clean isolation
 - **Mock Management**: Centralized mocks in `__mocks__/` with reset utilities
 - **Route Organization**: Separate route files in `src/server/routes/` importing shared tRPC base from `trpc-base.ts`
-- **File Uploads**: Base64 encoding via tRPC for simplicity; see `document-explanation.md` for production patterns
+- **File Uploads**: Native FormData via tRPC with `zod-form-data` validation and `splitLink` for non-JSON routing; see `document-explanation.md` for architecture details and production patterns
