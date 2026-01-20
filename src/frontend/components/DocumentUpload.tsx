@@ -15,9 +15,10 @@ const styles = {
   container: {
     display: 'flex',
     gap: '20px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'nowrap' as const,
     alignItems: 'stretch',
     height: 'calc(100vh - 40px)',
+    minWidth: 0,
   },
   column: {
     backgroundColor: '#fff',
@@ -28,14 +29,15 @@ const styles = {
     boxSizing: 'border-box' as const,
   },
   listColumn: {
-    width: '420px',
-    flexShrink: 0,
+    width: 'clamp(320px, 25vw, 420px)',
+    minWidth: '240px',
+    flexShrink: 1,
     overflow: 'visible',
     overflowY: 'auto' as const,
   },
   reviewColumn: {
-    flex: '1 1 600px',
-    minWidth: '320px',
+    flex: '1 1 0',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column' as const,
     minHeight: 0,
@@ -67,11 +69,18 @@ const styles = {
   },
   documentTitle: {
     margin: '0 0 6px 0',
+    fontSize: '14px',
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   documentMeta: {
     margin: '0',
     color: '#666',
     fontSize: '13px',
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   documentDate: {
     color: '#999',
@@ -103,12 +112,14 @@ const styles = {
   reviewLayout: {
     display: 'flex',
     gap: '20px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'nowrap' as const,
     flex: 1,
     minHeight: 0,
+    minWidth: 0,
   },
   viewerContainer: {
-    flex: '1 1 480px',
+    flex: '1 1 0',
+    minWidth: '360px',
     minHeight: 0,
     height: '100%',
     backgroundColor: '#f5f5f5',
@@ -123,8 +134,9 @@ const styles = {
     backgroundColor: '#525659',
   },
   sidePanel: {
-    width: '320px',
-    flexShrink: 0,
+    width: '280px',
+    minWidth: '220px',
+    flexShrink: 1,
     border: '1px solid #ddd',
     borderRadius: '8px',
     padding: '16px',
@@ -372,7 +384,7 @@ function DocumentCard({ document, isSelected, onReview }: DocumentCardProps) {
       tabIndex={canView ? 0 : undefined}
     >
       <div style={styles.documentCardContent}>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h4 style={styles.documentTitle}>{document.filename}</h4>
           <p style={styles.documentMeta}>
             {formatFileSize(document.fileSize)} • {document.mimeType}

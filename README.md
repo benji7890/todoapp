@@ -1,5 +1,7 @@
 # Todo App with tRPC + MikroORM
 
+![PDF viewer sample](sample_image/pdf-viewer-sample.png)
+
 A full-stack TypeScript application demonstrating modern web development practices with type-safe APIs and database integration.
 
 ## Features
