@@ -16,8 +16,8 @@ export const DOCUMENT_STATUS = {
   UPLOADING: 'uploading',
   UPLOADED: 'uploaded',
   PROCESSING: 'processing',
-  PARSED: 'parsed',
-  PARSE_ERROR: 'parse_error',
+  REVIEW: 'review',
+  COMPLETED: 'completed',
   ERROR: 'error',
 } as const;
 

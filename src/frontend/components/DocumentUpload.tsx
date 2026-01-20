@@ -1,9 +1,6 @@
-import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { trpc } from '../utils/trpc';
 import {
-  MAX_FILE_SIZE,
-  ALLOWED_MIME_TYPES,
   DOCUMENT_STATUS,
   DocumentStatus,
   Document,
@@ -16,71 +13,140 @@ import {
 
 const styles = {
   container: {
-    maxWidth: '800px',
+    display: 'flex',
+    gap: '20px',
+    flexWrap: 'wrap' as const,
+    alignItems: 'stretch',
+    height: 'calc(100vh - 40px)',
   },
-  uploadSection: {
-    marginBottom: '30px',
-    padding: '20px',
+  column: {
+    backgroundColor: '#fff',
     border: '1px solid #ddd',
     borderRadius: '8px',
+    padding: '16px',
+    height: '100%',
+    boxSizing: 'border-box' as const,
   },
-  fileInput: {
-    marginBottom: '10px',
+  listColumn: {
+    width: '420px',
+    flexShrink: 0,
+    overflow: 'visible',
+    overflowY: 'auto' as const,
   },
-  selectedFileText: {
-    margin: '10px 0',
-    color: '#666',
+  reviewColumn: {
+    flex: '1 1 600px',
+    minWidth: '320px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    minHeight: 0,
   },
-  errorText: {
-    margin: '10px 0',
-    color: 'red',
-  },
-  uploadButton: {
-    padding: '10px 20px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
+  sectionTitle: {
+    margin: '0 0 12px 0',
+    fontSize: '18px',
   },
   documentCard: {
-    padding: '15px',
-    margin: '10px 0',
-    border: '1px solid #ddd',
+    padding: '12px',
+    marginBottom: '12px',
+    borderWidth: '1px',
+    borderStyle: 'solid' as const,
+    borderColor: '#e6e6e6',
     borderRadius: '8px',
     backgroundColor: '#fff',
+    outline: 'none',
+  },
+  documentCardSelected: {
+    borderColor: '#007bff',
+    boxShadow: '0 0 0 1px #007bff',
+    outline: 'none',
   },
   documentCardContent: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: '12px',
   },
   documentTitle: {
-    margin: '0 0 5px 0',
+    margin: '0 0 6px 0',
   },
   documentMeta: {
     margin: '0',
     color: '#666',
-    fontSize: '14px',
+    fontSize: '13px',
   },
   documentDate: {
     color: '#999',
+    fontSize: '12px',
   },
-  viewLink: {
-    padding: '6px 12px',
+  cardActions: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'flex-end',
+    gap: '6px',
+    flexWrap: 'wrap' as const,
+    justifyContent: 'flex-end',
+  },
+  statusBadge: {
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: '12px',
+    whiteSpace: 'nowrap' as const,
+  },
+  viewButton: {
+    padding: '6px 10px',
     backgroundColor: '#007bff',
     color: 'white',
-    textDecoration: 'none',
+    border: 'none',
     borderRadius: '4px',
-    fontSize: '13px',
-    marginLeft: '10px',
+    fontSize: '12px',
+    cursor: 'pointer',
   },
-  noDocuments: {
+  reviewLayout: {
+    display: 'flex',
+    gap: '20px',
+    flexWrap: 'wrap' as const,
+    flex: 1,
+    minHeight: 0,
+  },
+  viewerContainer: {
+    flex: '1 1 480px',
+    minHeight: 0,
+    height: '100%',
+    backgroundColor: '#f5f5f5',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    overflow: 'hidden',
+  },
+  viewerFrame: {
+    width: '100%',
+    height: '100%',
+    border: 'none',
+    backgroundColor: '#525659',
+  },
+  sidePanel: {
+    width: '320px',
+    flexShrink: 0,
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    padding: '16px',
+    backgroundColor: '#fff',
+    height: '100%',
+    overflowY: 'auto' as const,
+  },
+  sidePanelHeader: {
+    marginBottom: '12px',
+  },
+  sidePanelTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '16px',
+  },
+  sidePanelMeta: {
+    margin: '4px 0',
     color: '#666',
+    fontSize: '13px',
   },
   extractedDataContainer: {
     marginTop: '15px',
-    padding: '15px',
+    padding: '12px',
     backgroundColor: '#f8f9fa',
     borderRadius: '6px',
     borderLeft: '4px solid #0c5460',
@@ -120,24 +186,55 @@ const styles = {
     borderBottom: '1px solid #dee2e6',
     fontSize: '13px',
   },
+  finishButton: {
+    marginTop: '16px',
+    width: '100%',
+    padding: '10px 12px',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  finishButtonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
+  },
+  emptyState: {
+    border: '1px dashed #ccc',
+    borderRadius: '8px',
+    padding: '24px',
+    color: '#666',
+    textAlign: 'center' as const,
+    backgroundColor: '#fafafa',
+  },
+  noDocuments: {
+    color: '#666',
+  },
+  errorText: {
+    marginTop: '10px',
+    color: '#dc3545',
+    fontSize: '13px',
+  },
 } as const;
 
 const statusStyles: Record<DocumentStatus, { backgroundColor: string; color: string }> = {
   [DOCUMENT_STATUS.UPLOADING]: { backgroundColor: '#cce5ff', color: '#004085' },
   [DOCUMENT_STATUS.UPLOADED]: { backgroundColor: '#d4edda', color: '#155724' },
   [DOCUMENT_STATUS.PROCESSING]: { backgroundColor: '#fff3cd', color: '#856404' },
-  [DOCUMENT_STATUS.PARSED]: { backgroundColor: '#d1ecf1', color: '#0c5460' },
-  [DOCUMENT_STATUS.PARSE_ERROR]: { backgroundColor: '#f8d7da', color: '#721c24' },
+  [DOCUMENT_STATUS.REVIEW]: { backgroundColor: '#e7f3ff', color: '#0056b3' },
+  [DOCUMENT_STATUS.COMPLETED]: { backgroundColor: '#d1e7dd', color: '#0f5132' },
   [DOCUMENT_STATUS.ERROR]: { backgroundColor: '#f8d7da', color: '#721c24' },
 };
 
 const statusMessages: Record<DocumentStatus, string> = {
   [DOCUMENT_STATUS.UPLOADING]: 'Uploading...',
-  [DOCUMENT_STATUS.UPLOADED]: 'Upload successful!',
+  [DOCUMENT_STATUS.UPLOADED]: 'Uploaded',
   [DOCUMENT_STATUS.PROCESSING]: 'Processing...',
-  [DOCUMENT_STATUS.PARSED]: 'Parsed successfully',
-  [DOCUMENT_STATUS.PARSE_ERROR]: 'Parse failed',
-  [DOCUMENT_STATUS.ERROR]: 'Upload failed',
+  [DOCUMENT_STATUS.REVIEW]: 'Review',
+  [DOCUMENT_STATUS.COMPLETED]: 'Completed',
+  [DOCUMENT_STATUS.ERROR]: 'Error',
 };
 
 // =============================================================================
@@ -148,16 +245,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isAllowedMimeType(type: string): boolean {
-  return (ALLOWED_MIME_TYPES as readonly string[]).includes(type);
-}
-
-function resetFileInput(ref: React.RefObject<HTMLInputElement | null>) {
-  if (ref.current) {
-    ref.current.value = '';
-  }
 }
 
 // =============================================================================
@@ -171,16 +258,14 @@ interface StatusBadgeProps {
 function StatusBadge({ status }: StatusBadgeProps) {
   const style = statusStyles[status];
   return (
-    <p
+    <span
       style={{
-        margin: '10px 0',
-        padding: '8px 12px',
-        borderRadius: '4px',
+        ...styles.statusBadge,
         ...style,
       }}
     >
       {statusMessages[status]}
-    </p>
+    </span>
   );
 }
 
@@ -191,7 +276,7 @@ interface ExtractedDataDisplayProps {
 function ExtractedDataDisplay({ data }: ExtractedDataDisplayProps) {
   return (
     <div style={styles.extractedDataContainer}>
-      <h5 style={styles.extractedDataTitle}>📄 Extracted Data</h5>
+      <h5 style={styles.extractedDataTitle}>Extracted Data</h5>
 
       <div style={styles.extractedDataField}>
         <span style={styles.extractedDataLabel}>Document Type:</span>
@@ -214,9 +299,7 @@ function ExtractedDataDisplay({ data }: ExtractedDataDisplayProps) {
 
       <div style={styles.extractedDataField}>
         <span style={styles.extractedDataLabel}>Date:</span>
-        <span style={styles.extractedDataValue}>
-          {new Date(data.date).toLocaleDateString()}
-        </span>
+        <span style={styles.extractedDataValue}>{data.date}</span>
       </div>
 
       <div style={styles.extractedDataField}>
@@ -252,51 +335,65 @@ function ExtractedDataDisplay({ data }: ExtractedDataDisplayProps) {
 }
 
 interface DocumentCardProps {
-  id: number;
-  filename: string;
-  fileSize: number;
-  mimeType: string;
-  uploadedAt: Date;
-  status: string;
-  extractedData?: ExtractedData;
+  document: Document;
+  isSelected: boolean;
+  onReview: (id: number) => void;
 }
 
-function DocumentCard({ id, filename, fileSize, mimeType, uploadedAt, status, extractedData }: DocumentCardProps) {
-  const statusStyle = statusStyles[status as DocumentStatus];
+function DocumentCard({ document, isSelected, onReview }: DocumentCardProps) {
+  const canView = document.mimeType === 'application/pdf' && Boolean(document.storedPath);
+  const viewLabel = 'View';
+
+  const handleOpen = () => {
+    if (canView) {
+      onReview(document.id);
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canView) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onReview(document.id);
+    }
+  };
 
   return (
-    <div style={styles.documentCard}>
+    <div
+      style={{
+        ...styles.documentCard,
+        ...(isSelected ? styles.documentCardSelected : {}),
+        ...(canView ? { cursor: 'pointer' } : {}),
+      }}
+      onClick={canView ? handleOpen : undefined}
+      onMouseDown={canView ? (event) => event.preventDefault() : undefined}
+      onKeyDown={canView ? handleKeyDown : undefined}
+      role={canView ? 'button' : undefined}
+      tabIndex={canView ? 0 : undefined}
+    >
       <div style={styles.documentCardContent}>
         <div style={{ flex: 1 }}>
-          <h4 style={styles.documentTitle}>{filename}</h4>
+          <h4 style={styles.documentTitle}>{document.filename}</h4>
           <p style={styles.documentMeta}>
-            {formatFileSize(fileSize)} • {mimeType}
+            {formatFileSize(document.fileSize)} • {document.mimeType}
           </p>
           <small style={styles.documentDate}>
-            Uploaded: {new Date(uploadedAt).toLocaleDateString()}
+            Uploaded: {new Date(document.uploadedAt).toLocaleDateString()}
           </small>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span
-            style={{
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              ...statusStyle,
-            }}
-          >
-            {statusMessages[status as DocumentStatus]}
-          </span>
-          <Link to={`/documents/${id}`} style={styles.viewLink}>
-            View
-          </Link>
+        <div style={styles.cardActions}>
+          <StatusBadge status={document.status} />
+          {canView && (
+            <button
+              type="button"
+              style={styles.viewButton}
+              onClick={() => onReview(document.id)}
+            >
+              {viewLabel}
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Display extracted data if available and status is parsed */}
-      {extractedData && status === DOCUMENT_STATUS.PARSED && (
-        <ExtractedDataDisplay data={extractedData} />
-      )}
     </div>
   );
 }
@@ -306,150 +403,149 @@ function DocumentCard({ id, filename, fileSize, mimeType, uploadedAt, status, ex
 // =============================================================================
 
 function DocumentUpload() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<DocumentStatus | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [reviewDocumentId, setReviewDocumentId] = useState<number | null>(null);
 
-  const documentsQuery = trpc.documents.list.useQuery();
-  const uploadMutation = trpc.documents.upload.useMutation();
   const utils = trpc.useUtils();
+  const documentsQuery = trpc.documents.list.useQuery(undefined, {
+    refetchInterval: (query) => {
+      const list = query.state.data as Document[] | undefined;
+      if (!list) return false;
+      const shouldPoll = list.some(
+        (doc) =>
+          doc.status === DOCUMENT_STATUS.UPLOADING ||
+          doc.status === DOCUMENT_STATUS.PROCESSING
+      );
+      return shouldPoll ? 2000 : false;
+    },
+  });
+  const updateStatusMutation = trpc.documents.updateStatus.useMutation({
+    onSuccess: () => {
+      utils.documents.list.invalidate();
+    },
+  });
 
-  const validateAndSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError(null);
-    const file = e.target.files?.[0];
+  const documents = useMemo(() => {
+    const list = documentsQuery.data as Document[] | undefined;
+    if (!list) return [];
+    return [...list].sort(
+      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    );
+  }, [documentsQuery.data]);
 
-    if (!file) {
-      setSelectedFile(null);
-      return;
-    }
+  const reviewDocument = documents.find((doc) => doc.id === reviewDocumentId) || null;
 
-    if (!isAllowedMimeType(file.type)) {
-      setError(`File type "${file.type}" is not allowed. Please select a PDF, image, text, or Word document.`);
-      setSelectedFile(null);
-      resetFileInput(fileInputRef);
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      setError(`File size exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB.`);
-      setSelectedFile(null);
-      resetFileInput(fileInputRef);
-      return;
-    }
-
-    setSelectedFile(file);
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-
-    setError(null);
-    setUploadStatus(DOCUMENT_STATUS.UPLOADING);
+  const handleFinishReview = async () => {
+    if (!reviewDocument) return;
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      await uploadMutation.mutateAsync(formData);
-
-      setUploadStatus(DOCUMENT_STATUS.UPLOADED);
-      setSelectedFile(null);
-      resetFileInput(fileInputRef);
-      utils.documents.list.invalidate();
-
-      setTimeout(() => setUploadStatus(null), 2000);
-    } catch (err) {
-      setUploadStatus(DOCUMENT_STATUS.ERROR);
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      await updateStatusMutation.mutateAsync({
+        id: reviewDocument.id,
+        status: DOCUMENT_STATUS.COMPLETED,
+      });
+    } catch {
+      // Error surfaced via updateStatusMutation.error
     }
   };
-
-  const isUploadDisabled = !selectedFile || uploadMutation.isPending;
 
   return (
     <div style={styles.container}>
-      {/* Upload Section */}
-      <div style={styles.uploadSection}>
-        <h3>Upload Document</h3>
-        <div style={{ marginBottom: '10px' }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={validateAndSelectFile}
-            accept={ALLOWED_MIME_TYPES.join(',')}
-            style={styles.fileInput}
-          />
+      <div style={{ ...styles.column, ...styles.listColumn }}>
+        <h2 style={styles.sectionTitle}>Documents</h2>
 
-          {selectedFile && (
-            <p style={styles.selectedFileText}>
-              Selected: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-            </p>
-          )}
-
-          {error && <p style={styles.errorText}>{error}</p>}
-
-          {uploadStatus && <StatusBadge status={uploadStatus} />}
-        </div>
-
-        <button
-          onClick={handleUpload}
-          disabled={isUploadDisabled}
-          style={{
-            ...styles.uploadButton,
-            opacity: isUploadDisabled ? 0.6 : 1,
-          }}
-        >
-          {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
-        </button>
+        {documentsQuery.isLoading ? (
+          <p>Loading documents...</p>
+        ) : documentsQuery.error ? (
+          <p style={{ color: 'red' }}>Error: {documentsQuery.error.message}</p>
+        ) : documents.length === 0 ? (
+          <p style={styles.noDocuments}>No documents uploaded yet.</p>
+        ) : (
+          documents.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              isSelected={doc.id === reviewDocumentId}
+              onReview={setReviewDocumentId}
+            />
+          ))
+        )}
       </div>
 
-      {/* Documents List Section */}
-      <div>
-        <h3>Uploaded Documents</h3>
-        <DocumentsList
-          isLoading={documentsQuery.isLoading}
-          error={documentsQuery.error}
-          documents={documentsQuery.data as Document[] | undefined}
-        />
+      <div style={{ ...styles.column, ...styles.reviewColumn }}>
+        <h2 style={styles.sectionTitle}>Review</h2>
+
+        {reviewDocument ? (
+          <div style={styles.reviewLayout}>
+            <div style={styles.viewerContainer}>
+              {reviewDocument.mimeType === 'application/pdf' && reviewDocument.storedPath ? (
+                <iframe
+                  src={`/api/documents/${reviewDocument.id}/file`}
+                  style={styles.viewerFrame}
+                  title={reviewDocument.filename}
+                />
+              ) : (
+                <div style={{ padding: '24px' }}>
+                  <p>PDF viewer is only available for PDF files.</p>
+                </div>
+              )}
+            </div>
+
+            <div style={styles.sidePanel}>
+              <div style={styles.sidePanelHeader}>
+                <h3 style={styles.sidePanelTitle}>{reviewDocument.filename}</h3>
+                <StatusBadge status={reviewDocument.status} />
+                <p style={styles.sidePanelMeta}>
+                  Uploaded: {new Date(reviewDocument.uploadedAt).toLocaleString()}
+                </p>
+                <p style={styles.sidePanelMeta}>
+                  Size: {formatFileSize(reviewDocument.fileSize)}
+                </p>
+              </div>
+
+              {reviewDocument.extractedData ? (
+                <ExtractedDataDisplay data={reviewDocument.extractedData} />
+              ) : reviewDocument.status === DOCUMENT_STATUS.PROCESSING ? (
+                <p>Processing document...</p>
+              ) : reviewDocument.status === DOCUMENT_STATUS.ERROR ? (
+                <>
+                  <p>Unable to extract data for this document.</p>
+                  {updateStatusMutation.error && (
+                    <p style={styles.errorText}>{updateStatusMutation.error.message}</p>
+                  )}
+                </>
+              ) : (
+                <p>No extracted data available.</p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleFinishReview}
+                disabled={
+                  updateStatusMutation.isPending ||
+                  reviewDocument.status !== DOCUMENT_STATUS.REVIEW
+                }
+                style={{
+                  ...styles.finishButton,
+                  ...(updateStatusMutation.isPending ||
+                  reviewDocument.status !== DOCUMENT_STATUS.REVIEW
+                    ? styles.finishButtonDisabled
+                    : {}),
+                }}
+              >
+                {updateStatusMutation.isPending
+                  ? 'Saving...'
+                  : reviewDocument.status === DOCUMENT_STATUS.COMPLETED
+                  ? 'Approved'
+                  : 'Approve'}
+              </button>
+
+            </div>
+          </div>
+        ) : (
+          <div style={styles.emptyState}>
+            <p>Select a document with status "Ready for review" to begin.</p>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-interface DocumentsListProps {
-  isLoading: boolean;
-  error: { message: string } | null;
-  documents: Document[] | undefined;
-}
-
-function DocumentsList({ isLoading, error, documents }: DocumentsListProps) {
-  if (isLoading) {
-    return <p>Loading documents...</p>;
-  }
-
-  if (error) {
-    return <p style={{ color: 'red' }}>Error: {error.message}</p>;
-  }
-
-  if (!documents?.length) {
-    return <p style={styles.noDocuments}>No documents uploaded yet.</p>;
-  }
-
-  return (
-    <div>
-      {documents.map((doc) => (
-        <DocumentCard
-          key={doc.id}
-          id={doc.id}
-          filename={doc.filename}
-          fileSize={doc.fileSize}
-          mimeType={doc.mimeType}
-          uploadedAt={doc.uploadedAt}
-          status={doc.status}
-          extractedData={doc.extractedData}
-        />
-      ))}
     </div>
   );
 }

@@ -88,7 +88,7 @@ describe('DocumentUpload', () => {
   it('renders the document upload form with empty message', () => {
     render(<DocumentUpload />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('Upload Document')).toBeInTheDocument();
+    expect(screen.getByText('Upload')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
     expect(screen.getByText('No documents uploaded yet.')).toBeInTheDocument();
   });

@@ -53,41 +53,49 @@ export const documentsRouter = router({
         document.storedPath = storedPath;
         await ctx.orm.em.flush();
 
+        // Mark as uploaded once stored on disk
+        document.status = DOCUMENT_STATUS.UPLOADED;
+        await ctx.orm.em.flush();
+
         // Only process PDFs for text extraction
         if (file.type === 'application/pdf') {
-          // Extract text from PDF
-          const text = await extractTextFromPDF(fileBuffer);
-
-          // Update status to processing
+          // Update status to processing before extraction
           document.status = DOCUMENT_STATUS.PROCESSING;
           await ctx.orm.em.flush();
+
+          // Extract text from PDF
+          const text = await extractTextFromPDF(fileBuffer);
 
           // Send to OpenRouter for data extraction
           const extractedData = await extractDataFromText(text);
 
-          // Save extracted data and mark as parsed
+          // Save extracted data and mark as ready for review
           document.extractedData = extractedData;
-          document.status = DOCUMENT_STATUS.PARSED;
-          await ctx.orm.em.flush();
-        } else {
-          // For non-PDF files, just mark as uploaded
-          document.status = DOCUMENT_STATUS.UPLOADED;
+          document.status = DOCUMENT_STATUS.REVIEW;
           await ctx.orm.em.flush();
         }
 
         return document;
       } catch (error) {
-        // On failure, mark as PARSE_ERROR or ERROR
-        if (document.storedPath) {
-          // File was saved but processing failed
-          document.status = DOCUMENT_STATUS.PARSE_ERROR;
-        } else {
-          // File save failed
-          document.status = DOCUMENT_STATUS.ERROR;
-        }
+        // On failure, mark as ERROR
+        document.status = DOCUMENT_STATUS.ERROR;
         await ctx.orm.em.flush();
         throw new Error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    }),
+
+  updateStatus: publicProcedure
+    .input(z.object({ id: z.number(), status: z.enum([DOCUMENT_STATUS.COMPLETED]) }))
+    .mutation(async ({ input, ctx }) => {
+      const document = await ctx.orm.em.findOneOrFail(Document, input.id);
+
+      if (document.status !== DOCUMENT_STATUS.REVIEW) {
+        throw new Error('Document must be in review status to complete.');
+      }
+
+      document.status = input.status;
+      await ctx.orm.em.flush();
+      return document;
     }),
     
   delete: publicProcedure
