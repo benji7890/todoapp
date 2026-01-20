@@ -15,10 +15,25 @@ export type AllowedMimeType = typeof ALLOWED_MIME_TYPES[number];
 export const DOCUMENT_STATUS = {
   UPLOADING: 'uploading',
   UPLOADED: 'uploaded',
+  PROCESSING: 'processing',
+  PARSED: 'parsed',
+  PARSE_ERROR: 'parse_error',
   ERROR: 'error',
 } as const;
 
 export type DocumentStatus = typeof DOCUMENT_STATUS[keyof typeof DOCUMENT_STATUS];
+
+export interface ExtractedData {
+  documentType: string;      // "invoice", "receipt", "contract"
+  vendor: string;            // Company/person name
+  amount?: number;           // Total amount
+  date: string;              // ISO date string
+  description: string;       // Brief description
+  lineItems?: Array<{
+    description: string;
+    amount: number;
+  }>;
+}
 
 export interface Document {
   id: number;
@@ -27,4 +42,6 @@ export interface Document {
   mimeType: AllowedMimeType;
   uploadedAt: Date;
   status: DocumentStatus;
+  extractedData?: ExtractedData;
+  storedPath?: string;
 }

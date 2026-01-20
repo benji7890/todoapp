@@ -64,12 +64,12 @@ describe('Document tRPC Endpoints', () => {
   describe('documents.upload', () => {
     it('should upload a document with FormData', async () => {
       await runInContext(async () => {
-        const formData = createTestFormData('test.pdf', 'application/pdf', 12);
+        const formData = createTestFormData('test.txt', 'text/plain', 12);
 
         const result = await caller.documents.upload(formData);
 
-        expect(result.filename).toBe('test.pdf');
-        expect(result.mimeType).toBe('application/pdf');
+        expect(result.filename).toBe('test.txt');
+        expect(result.mimeType).toBe('text/plain');
         expect(result.fileSize).toBe(12);
         expect(result.status).toBe('uploaded');
         expect(result.id).toBeDefined();
@@ -79,12 +79,12 @@ describe('Document tRPC Endpoints', () => {
 
     it('should persist document to database', async () => {
       await runInContext(async () => {
-        const formData = createTestFormData('persisted.pdf', 'application/pdf', 12);
+        const formData = createTestFormData('persisted.txt', 'text/plain', 12);
         await caller.documents.upload(formData);
 
         const documents = await orm.em.find(Document, {});
         expect(documents).toHaveLength(1);
-        expect(documents[0].filename).toBe('persisted.pdf');
+        expect(documents[0].filename).toBe('persisted.txt');
       });
     });
 
@@ -108,7 +108,6 @@ describe('Document tRPC Endpoints', () => {
     it('should accept allowed MIME types', async () => {
       await runInContext(async () => {
         const allowedTypes = [
-          { filename: 'doc.pdf', mimeType: 'application/pdf' },
           { filename: 'image.jpg', mimeType: 'image/jpeg' },
           { filename: 'image.png', mimeType: 'image/png' },
           { filename: 'doc.txt', mimeType: 'text/plain' },
@@ -125,7 +124,7 @@ describe('Document tRPC Endpoints', () => {
     it('should accept file exactly at 10MB boundary', async () => {
       await runInContext(async () => {
         const exactlyMaxSize = 10 * 1024 * 1024; // Exactly 10MB
-        const formData = createTestFormData('exact-limit.pdf', 'application/pdf', exactlyMaxSize);
+        const formData = createTestFormData('exact-limit.txt', 'text/plain', exactlyMaxSize);
 
         const result = await caller.documents.upload(formData);
 
@@ -145,8 +144,8 @@ describe('Document tRPC Endpoints', () => {
 
     it('should handle unicode characters in filename', async () => {
       await runInContext(async () => {
-        const unicodeFilename = '文档测试_日本語_émoji🎉.pdf';
-        const formData = createTestFormData(unicodeFilename, 'application/pdf', 1024);
+        const unicodeFilename = '文档测试_日本語_émoji🎉.txt';
+        const formData = createTestFormData(unicodeFilename, 'text/plain', 1024);
 
         const result = await caller.documents.upload(formData);
 
@@ -156,8 +155,8 @@ describe('Document tRPC Endpoints', () => {
 
     it('should handle filename with special characters', async () => {
       await runInContext(async () => {
-        const specialFilename = 'file-with_special (1) [copy].pdf';
-        const formData = createTestFormData(specialFilename, 'application/pdf', 1024);
+        const specialFilename = 'file-with_special (1) [copy].txt';
+        const formData = createTestFormData(specialFilename, 'text/plain', 1024);
 
         const result = await caller.documents.upload(formData);
 

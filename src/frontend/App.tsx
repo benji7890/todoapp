@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import TodoApp from './components/TodoApp';
 import DocumentUpload from './components/DocumentUpload';
+import DocumentDetail from './components/DocumentDetail';
 
-type Tab = 'todos' | 'documents';
+function AppContent() {
+  const location = useLocation();
+  const isDocumentDetail = location.pathname.startsWith('/documents/');
 
-function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('todos');
+  // Don't show tabs on document detail page
+  if (isDocumentDetail) {
+    return <DocumentDetail />;
+  }
+
+  const activeTab = location.pathname === '/documents' ? 'documents' : 'todos';
 
   const tabStyle = (isActive: boolean): React.CSSProperties => ({
     padding: '10px 20px',
@@ -16,28 +23,43 @@ function App() {
     fontWeight: isActive ? 'bold' : 'normal',
     cursor: 'pointer',
     fontSize: '16px',
+    textDecoration: 'none',
+    display: 'inline-block',
   });
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Todo App with tRPC + MikroORM</h1>
       <div style={{ display: 'flex', borderBottom: '1px solid #ddd', marginBottom: '20px' }}>
-        <button
+        <Link
+          to="/"
           style={tabStyle(activeTab === 'todos')}
-          onClick={() => setActiveTab('todos')}
         >
           Todos
-        </button>
-        <button
+        </Link>
+        <Link
+          to="/documents"
           style={tabStyle(activeTab === 'documents')}
-          onClick={() => setActiveTab('documents')}
         >
           Documents
-        </button>
+        </Link>
       </div>
-      {activeTab === 'todos' && <TodoApp />}
-      {activeTab === 'documents' && <DocumentUpload />}
+      <Routes>
+        <Route path="/" element={<TodoApp />} />
+        <Route path="/documents" element={<DocumentUpload />} />
+      </Routes>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/documents/:id" element={<DocumentDetail />} />
+        <Route path="*" element={<AppContent />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

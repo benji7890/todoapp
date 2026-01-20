@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router-dom';
 import { mockStubs, resetAllMocks } from '../__mocks__/trpc';
 
 // Mock the tRPC module
@@ -12,7 +13,7 @@ vi.mock('../utils/trpc', async () => {
 
 import DocumentUpload from './DocumentUpload';
 
-// Helper to create a test wrapper with QueryClient
+// Helper to create a test wrapper with QueryClient and Router
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -22,7 +23,9 @@ const createWrapper = () => {
   });
 
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </BrowserRouter>
   );
 };
 
@@ -244,7 +247,7 @@ describe('DocumentUpload', () => {
 
     render(<DocumentUpload />, { wrapper: createWrapper() });
 
-    const statusBadges = screen.getAllByText('uploaded');
+    const statusBadges = screen.getAllByText('Upload successful!');
     expect(statusBadges).toHaveLength(2);
   });
 
@@ -426,9 +429,9 @@ describe('DocumentUpload', () => {
 
       render(<DocumentUpload />, { wrapper: createWrapper() });
 
-      expect(screen.getByText('uploading')).toBeInTheDocument();
-      expect(screen.getByText('uploaded')).toBeInTheDocument();
-      expect(screen.getByText('error')).toBeInTheDocument();
+      expect(screen.getByText('Uploading...')).toBeInTheDocument();
+      expect(screen.getByText('Upload successful!')).toBeInTheDocument();
+      expect(screen.getByText('Upload failed')).toBeInTheDocument();
     });
 
     it('formats file sizes correctly for various magnitudes', () => {

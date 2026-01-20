@@ -1,5 +1,5 @@
 import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
-import { DOCUMENT_STATUS, DocumentStatus, AllowedMimeType } from '../../shared/documents';
+import { DOCUMENT_STATUS, DocumentStatus, AllowedMimeType, ExtractedData } from '../../shared/documents';
 
 @Entity()
 export class Document {
@@ -20,6 +20,12 @@ export class Document {
 
   @Property()
   status: DocumentStatus;
+
+  @Property({ type: 'json', nullable: true })
+  extractedData?: ExtractedData;
+
+  @Property({ nullable: true })
+  storedPath?: string;
 
   constructor(params: { filename: string; fileSize: number; mimeType: AllowedMimeType; status?: DocumentStatus }) {
     this.filename = params.filename;
